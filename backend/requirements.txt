@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+langgraph
+langchain
+langchain_groq  # Using Groq (Free/Fast LLM)
+langchain_community
+langchain_openai # Keep just in case you want to switch later
+psycopg2-binary # For Supabase (Postgres)
+httpx
+python-dotenv
+pydantic
+sqlalchemy
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+pinecone-client

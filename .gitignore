@@ -1,0 +1,17 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+
+# Secrets
+.env
+backend/.env
+frontend/.env
+*.sqlite3
+
+# OS files
+.DS_Store
