@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
+import psycopg2
+from auth import exchange_code_for_tokens, get_user_info
 
 load_dotenv()
 
@@ -11,15 +13,77 @@ app = FastAPI()
 # this allows frontend to talk with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials = True,
     allow_methods = ["*"],
     allow_headers = ["*"]
 )
 
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        return conn
+    except Exception as e:
+        print(f"Database error : {e}")
+        raise HTTPException(status_code=500 , detail="Database connection failed")
+    
+class AuthRequest(BaseModel):
+    code: str
+
 @app.get("/")
 def read_root():
     return{"status": "Agent is awake", "database": "Connected"}
+
+@app.post("/auth/google")
+def google_auth(request: AuthRequest):
+    """
+    1. Receive Code from Frontend
+    2. Exchange for Refresh Token (Google)
+    3. Save User + Token to Supabase
+    """
+    tokens = exchange_code_for_tokens(request.code)
+
+    print("⚠️ GOOGLE ERROR:", tokens)
+
+    if "error" in tokens:
+        raise HTTPException(status_code=400, detail=tokens)
+    
+    access_token = tokens.get("access_token")
+    refresh_token = tokens.get("refresh_token")
+
+    user_info = get_user_info(access_token)
+    email = user_info.get("email")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            refresh_token TEXT,
+            access_token TEXT
+        );
+    """)
+
+    # If we got a new refresh token, save it. If not, keep the old one.
+    if refresh_token:
+        cursor.execute("""
+            INSERT INTO users (email, refresh_token, access_token)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (email) 
+            DO UPDATE SET refresh_token = EXCLUDED.refresh_token, access_token = EXCLUDED.access_token;
+        """, (email, refresh_token, access_token))
+    else:
+        # Just update access token
+        cursor.execute("""
+            UPDATE users SET access_token = %s WHERE email = %s;
+        """, (access_token, email))
+        
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {"message": "User verified", "user": user_info}
 
 class AgentRequest(BaseModel):
     user_id: str

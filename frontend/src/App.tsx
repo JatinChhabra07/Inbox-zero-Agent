@@ -1,35 +1,61 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
+import axios from 'axios';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // 1. The Login Hook
+  const googleLogin = useGoogleLogin({
+    flow: 'auth-code', // <--- CRITICAL: This gives us a "Code" to swap for a Refresh Token
+    scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose',
+    onSuccess: async (codeResponse) => {
+      console.log("Google gave us this code:", codeResponse.code);
+      setLoading(true);
+      
+      // 2. Send the code to our Backend
+      try {
+        const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/google`, {
+          code: codeResponse.code,
+        });
+        console.log("Backend verified user:", res.data);
+        setUser(res.data.user);
+      } catch (error) {
+        console.error("Backend login failed:", error);
+        alert("Login failed! Check console.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: errorResponse => console.log(errorResponse),
+  });
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="app-container" style={{ padding: '2rem', textAlign: 'center' }}>
+      <h1>📨 Inbox Zero Agent</h1>
+      <p>Connect your Gmail to let the AI draft replies.</p>
+      
+      <div style={{ marginTop: '2rem' }}>
+        {!user ? (
+          <button 
+            onClick={() => googleLogin()} 
+            disabled={loading}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}
+          >
+            {loading ? "Verifying..." : "🚀 Connect Gmail"}
+          </button>
+        ) : (
+          <div className="dashboard">
+            <h3>✅ Welcome, {user.email}</h3>
+            <p>Agent is Active. Status: <strong>Standby</strong></p>
+            <button onClick={() => setUser(null)}>Logout</button>
+          </div>
+        )}
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;
