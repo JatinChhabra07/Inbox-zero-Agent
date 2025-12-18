@@ -145,7 +145,7 @@ async def run_agent(request: RunAgentRequest):
         return {"status": "Success", "agent_response": response_text}
 
     except Exception as e:
-        print("❌ CRITICAL ERROR DETAILS:")
+        print("CRITICAL ERROR DETAILS:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
