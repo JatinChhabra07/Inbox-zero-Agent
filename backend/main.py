@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 import psycopg2
 from auth import exchange_code_for_tokens, get_user_info
+from agent import app_graph
+import traceback
 
 load_dotenv()
 
@@ -92,6 +94,60 @@ class AgentRequest(BaseModel):
 @app.post("/start-agent")
 def start_agent(request: AgentRequest):
     return{"message": f"Starting agent for user {request.user_id}", "goal": request.goal}
+
+
+class RunAgentRequest(BaseModel):
+    email:str
+
+@app.post("/run-agent")
+async def run_agent(request: RunAgentRequest):
+    print(f"🤖 Starting Agent for: {request.email}")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT access_token, refresh_token FROM users WHERE email = %s", (request.email,))
+    user_data = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    access_token, refresh_token = user_data
+
+    config = {
+        "configurable": {
+            "user_tokens": {
+                "access_token": access_token,
+                "refresh_token": refresh_token
+            }
+        }
+    }
+
+    try:
+        output = await app_graph.ainvoke(
+            {"messages": ["Check for unread emails and draft a reply"]}, 
+            config=config
+        )
+        
+        # 👇 DEBUGGING: Print exactly what the agent returned
+        print("🔍 AGENT OUTPUT:", output)
+        
+        # 👇 SAFETY CHECK: Use .get() to avoid crashing if key is missing
+        messages = output.get("messages", [])
+        
+        if not messages:
+            return {"status": "Agent finished", "agent_response": "No messages returned from agent."}
+            
+        last_message = messages[-1]
+        response_text = last_message.content if hasattr(last_message, 'content') else str(last_message)
+        
+        return {"status": "Success", "agent_response": response_text}
+
+    except Exception as e:
+        print("❌ CRITICAL ERROR DETAILS:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ =="__main__":
     import uvicorn

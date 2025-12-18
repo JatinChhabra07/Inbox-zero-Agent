@@ -32,25 +32,58 @@ function App() {
     onError: errorResponse => console.log(errorResponse),
   });
 
+  const runAgent = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      // Call our new endpoint
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/run-agent`, {
+        email: user.email // Send the email so backend knows which tokens to use
+      });
+      
+      console.log("Agent finished:", res.data);
+      alert(`🤖 Agent says:\n\n${res.data.agent_response}`);
+    } catch (error: any) {
+      console.error("Agent failed:", error);
+      alert("Agent failed! Check console.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="app-container" style={{ padding: '2rem', textAlign: 'center' }}>
       <h1>📨 Inbox Zero Agent</h1>
-      <p>Connect your Gmail to let the AI draft replies.</p>
       
       <div style={{ marginTop: '2rem' }}>
         {!user ? (
-          <button 
-            onClick={() => googleLogin()} 
-            disabled={loading}
-            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}
-          >
-            {loading ? "Verifying..." : "🚀 Connect Gmail"}
-          </button>
+          /* Login Button (Keep your existing GoogleLogin code here) */
+          <button onClick={() => googleLogin()}>🚀 Connect Gmail</button>
         ) : (
+          /* Dashboard */
           <div className="dashboard">
             <h3>✅ Welcome, {user.email}</h3>
-            <p>Agent is Active. Status: <strong>Standby</strong></p>
-            <button onClick={() => setUser(null)}>Logout</button>
+            <p>Ready to process your inbox.</p>
+            
+            <div style={{ margin: '20px 0' }}>
+              <button 
+                onClick={runAgent} 
+                disabled={loading}
+                style={{ 
+                  padding: '15px 30px', 
+                  fontSize: '18px', 
+                  backgroundColor: loading ? '#ccc' : '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: loading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading ? "🤖 Agent Working..." : "⚡ Run Inbox Zero Agent"}
+              </button>
+            </div>
+            
+            <button onClick={() => setUser(null)} style={{marginTop: '20px'}}>Logout</button>
           </div>
         )}
       </div>
