@@ -15,7 +15,10 @@ app = FastAPI()
 # this allows frontend to talk with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://inbox-zero-agent.vercel.app/"],
+    allow_origins=[
+    "https://inbox-zero-agent.vercel.app",  # ✅ GOOD (No slash)
+    "http://localhost:5173"
+],
     allow_credentials = True,
     allow_methods = ["*"],
     allow_headers = ["*"]
