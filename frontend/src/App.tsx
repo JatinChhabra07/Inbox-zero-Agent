@@ -139,7 +139,7 @@ function App() {
               >
                 <div className="user-info">
                   <div className="avatar-ring"><img src={user.picture} alt="Profile" className="avatar" /></div>
-                  <div><h3>{user.name}</h3><span className="status-indicator">● Online :: Operative</span></div>
+                  <div><h3>{user.name}</h3><span className="status-indicator">● System Connected</span></div>
                 </div>
 
                 <div className="action-area">
